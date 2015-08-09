@@ -7,14 +7,16 @@
 //
 
 #import "RootViewController.h"
+#import <WebKit/WebKit.h>
 
-@interface RootViewController () <UIWebViewDelegate, UITextFieldDelegate, UIAlertViewDelegate>
+@interface RootViewController () <UIWebViewDelegate,  UITextFieldDelegate, UIAlertViewDelegate, UINavigationBarDelegate, UIScrollViewDelegate>
 @property (weak, nonatomic) IBOutlet UIWebView *webView;
 @property (weak, nonatomic) IBOutlet UITextField *urlTextField;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *activityIndicator;
 @property (weak, nonatomic) IBOutlet UIButton *backButton;
 @property (weak, nonatomic) IBOutlet UIButton *forwardButton;
 @property NSString *currentUrl;
+@property CGPoint startingPoint;
 
 @end
 
@@ -22,17 +24,17 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.webView.scrollView.delegate = self;
 
     //set defaults
     [self loadUrl:@"google.com"];
-    self.urlTextField.text = self.currentUrl;
-    NSLog(@"text field set in viewdidload");
+
     self.backButton.enabled = false;
     self.forwardButton.enabled = false;
 }
 
 -(BOOL)textFieldShouldReturn:(UITextField *)textFieldArg {
-    [self loadUrl:self.urlTextField.text];
+    [self loadUrl:textFieldArg.text];
     [textFieldArg resignFirstResponder];
     return YES;
 }
@@ -49,19 +51,8 @@
     NSURLRequest *request = [NSURLRequest requestWithURL:url];
     [self.webView loadRequest:request];
     self.currentUrl = [url absoluteString];
-
-    //attempted urltextfield updating -- doesn't work yet!
-        /*[self updateAddressBarText:self.webView.request.URL];
-        self.urlTextField.text = [url absoluteString];
-        NSLog(@"text field set in loadurl"); */
-    self.urlTextField.placeholder = @"enter url";
-}
-
-//attempted urltextfield updating -- doesn't work yet!
-/* - (void) updateAddressBarText: (NSURL *)updatedUrl {
-    NSString *urlString = [updatedUrl absoluteString];
     self.urlTextField.text = urlString;
-} */
+}
 
 -(void)webViewDidStartLoad:(UIWebView *)webView {
     [self.activityIndicator startAnimating];
@@ -69,21 +60,18 @@
 
 -(void)webViewDidFinishLoad:(UIWebView *)webView {
     [self.activityIndicator stopAnimating];
-    //self.urlTextField.text = self.currentUrl;
-    //NSLog(@"text field set in didfinishload");
     [self setEnabled];
+
+    NSString* title = [webView stringByEvaluatingJavaScriptFromString: @"document.title"];
+    self.navigationItem.title = title;
 }
 
 - (IBAction)onBackButtonPressed:(UIButton *)sender {
     [self.webView goBack];
-    self.urlTextField.text = self.currentUrl;
-    NSLog(@"text field set in backbuttonpressed");
 }
 
 - (IBAction)onForwardButtonPressed:(UIButton *)sender {
     [self.webView goForward];
-    self.urlTextField.text = self.currentUrl;
-    NSLog(@"text field set in forwardbuttonpressed");
 }
 
 - (IBAction)onStopLoadingButtonPressed:(UIButton *)sender {
@@ -104,21 +92,8 @@
 }
 
 -(void)setEnabled {
-    //refactored commented code below
     self.backButton.enabled = self.webView.canGoBack;
     self.forwardButton.enabled = self.webView.canGoForward;
-
-    /*if (self.webView.canGoBack == true) {
-        self.backButton.enabled = true;
-    } else {
-        self.backButton.enabled = false;
-    }
-
-    if (self.webView.canGoForward == true) {
-        self.forwardButton.enabled = true;
-    } else {
-        self.forwardButton.enabled = false;
-    }*/
 }
 
 -(void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error {
@@ -138,6 +113,18 @@
         self.urlTextField.text = @"google.com";
     } else {
         self.urlTextField.text = nil;
+    }
+}
+
+-(void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    self.startingPoint = scrollView.contentOffset;
+}
+
+-(void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    if (scrollView.contentOffset.y<self.startingPoint.y) {
+        self.urlTextField.hidden = false;
+    } else if (scrollView.contentOffset.y>self.startingPoint.y) {
+        self.urlTextField.hidden = true;
     }
 }
 
